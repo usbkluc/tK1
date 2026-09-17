@@ -1,16 +1,13 @@
 import { useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import type { AppView, RequestDraft } from '@/types';
 import { categories, findCategory, findSubcategory, findService } from '@/data/catalog';
-import { speedOptions, siteConfig } from '@/config';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import CategoryGrid from '@/components/CategoryGrid';
 import SubcategoryView from '@/components/SubcategoryView';
 import ServiceDetail from '@/components/ServiceDetail';
-import WhatsAppMessagePreview from '@/components/WhatsAppMessagePreview';
+import SubmissionConfirmation from '@/components/SubmissionConfirmation';
 import Footer from '@/components/Footer';
-import WhatsAppButton from '@/components/WhatsAppButton';
 import PriceListPage from '@/components/PriceListPage';
 import HowItWorksPage from '@/components/HowItWorksPage';
 import AboutPage from '@/components/AboutPage';
@@ -18,16 +15,13 @@ import ContactPage from '@/components/ContactPage';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import MatrixBackground from '@/components/MatrixBackground';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
 function emptyDraft(categoryId: string, subcategoryId: string, serviceId: string): RequestDraft {
   return {
     categoryId,
     subcategoryId,
     serviceId,
+    customerName: '',
+    customerSurname: '',
     answers: {},
     description: '',
     speed: 'normal',
@@ -41,10 +35,15 @@ function emptyDraft(categoryId: string, subcategoryId: string, serviceId: string
 export default function App() {
   const [view, setView] = useState<AppView>({ name: 'home' });
   const [draft, setDraft] = useState<RequestDraft | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const navigate = useCallback((v: AppView) => {
     if (v.name === 'service') {
       setDraft(emptyDraft(v.categoryId, v.subcategoryId, v.serviceId));
+      setSubmitted(false);
+      setSubmitError(null);
     }
     setView(v);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -69,32 +68,50 @@ export default function App() {
     navigate({ name: 'service', categoryId, subcategoryId, serviceId });
   };
 
-  const handleSubmitToWhatsApp = async () => {
+  const handleSubmit = async () => {
     if (!draft) return;
-    const cat = findCategory(view.name === 'message' ? view.categoryId : '');
-    if (!cat) return;
-    const sub = findSubcategory(cat.id, view.name === 'message' ? view.subcategoryId : '');
-    const svc = findService(cat.id, sub?.id ?? '', view.name === 'message' ? view.serviceId : '');
-    if (!sub || !svc) return;
+    const cat = findCategory(view.categoryId);
+    const sub = findSubcategory(view.categoryId, view.subcategoryId);
+    const svc = findService(view.categoryId, view.subcategoryId, view.serviceId);
+    if (!cat || !sub || !svc) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
 
     try {
-      await supabase.from('service_requests').insert({
-        category_id: cat.id,
-        category_name: cat.name,
-        subcategory_id: sub.id,
-        subcategory_name: sub.name,
-        service_id: svc.id,
-        service_name: svc.name,
-        answers: draft.answers,
-        description: draft.description,
-        speed: draft.speed,
-        material: draft.material,
-        risk_accepted: draft.riskAccepted,
-        files: draft.files,
-        status: 'pending',
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-request`;
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          customerName: draft.customerName,
+          customerSurname: draft.customerSurname,
+          categoryName: cat.name,
+          serviceName: svc.name,
+          answers: draft.answers,
+          description: draft.description,
+          speed: draft.speed,
+          material: draft.material,
+          proposedPrice: draft.proposedPrice,
+          files: draft.files,
+        }),
       });
-    } catch {
-      // ignore DB errors — WhatsApp is the primary channel
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error ?? `HTTP ${res.status}`);
+      }
+
+      setSubmitted(true);
+      setView({ name: 'message', categoryId: cat.id, subcategoryId: sub.id, serviceId: svc.id });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Neznáma chyba');
+      setView({ name: 'message', categoryId: cat.id, subcategoryId: sub.id, serviceId: svc.id });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -173,10 +190,8 @@ export default function App() {
             service={svc}
             draft={draft!}
             onUpdateDraft={(updates) => setDraft((current) => current ? { ...current, ...updates } : current)}
-            onGenerateMessage={() => {
-              handleSubmitToWhatsApp();
-              navigate({ name: 'message', categoryId: cat.id, subcategoryId: sub.id, serviceId: svc.id });
-            }}
+            onGenerateMessage={handleSubmit}
+            submitting={submitting}
           />
         </>
       );
@@ -198,10 +213,12 @@ export default function App() {
               { label: svc.name, onClick: () => navigate({ name: 'service', categoryId: cat.id, subcategoryId: sub.id, serviceId: svc.id }) },
             ]}
           />
-          <WhatsAppMessagePreview
+          <SubmissionConfirmation
             category={cat}
             service={svc}
             draft={draft!}
+            submitted={submitted}
+            error={submitError}
             onBack={() => navigate({ name: 'service', categoryId: cat.id, subcategoryId: sub.id, serviceId: svc.id })}
             onDone={() => navigate({ name: 'home' })}
           />
@@ -218,7 +235,6 @@ export default function App() {
       <Header currentView={view} onNavigate={navigate} />
       <main>{renderView()}</main>
       <Footer onNavigate={navigate} />
-      {view.name !== 'message' && <WhatsAppButton variant="floating" text="Napíš na WhatsApp" />}
     </div>
   );
 }

@@ -5,54 +5,6 @@ import type { Category } from '@/types';
 
 export const categories: Category[] = [
   {
-    id: 'opravy',
-    name: 'Opravy',
-    icon: 'Wrench',
-    description: 'Niečo sa pokazilo? Napíš mi rovno, čo treba opraviť.',
-    subcategories: [
-      {
-        id: 'oprava',
-        name: 'Oprava',
-        services: [
-          {
-            id: 'oprava',
-            name: 'Oprava',
-            description: 'Niečo sa pokazilo? Napíš mi rovno, čo treba opraviť — čo je to za zariadenie a čo je zlé.',
-            priceFrom: 'od 5 €',
-            descriptionPrompt: 'Napíš, čo treba opraviť.',
-            questions: [
-              { id: 'co-opravit', label: 'Čo treba opraviť', type: 'textarea', placeholder: 'napr. rozbitý displej na Samsung Galaxy A52, nabíjací port na notebooku, televízor sa nezapaľuje...', required: true },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'vymena-montaz',
-    name: 'Výmena / montáž',
-    icon: 'Replace',
-    description: 'Treba niečo vymeniť alebo namontovať? Napíš mi rovno, čo treba.',
-    subcategories: [
-      {
-        id: 'vymena',
-        name: 'Výmena / montáž',
-        services: [
-          {
-            id: 'vymena',
-            name: 'Výmena / montáž',
-            description: 'Treba niečo vymeniť alebo namontovať? Napíš mi rovno, čo treba vymeniť a v akom zariadení.',
-            priceFrom: 'od 5 €',
-            descriptionPrompt: 'Napíš, čo treba vymeniť.',
-            questions: [
-              { id: 'co-vymenit', label: 'Čo treba vymeniť', type: 'textarea', placeholder: 'napr. displej na Samsung Galaxy A52, SSD v notebooku, batéria v tablete...', required: true },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: 'mobily-pc',
     name: 'Mobily / PC',
     icon: 'Smartphone',
@@ -813,8 +765,6 @@ export interface PriceListEntry {
 
 export const priceList: PriceListEntry[] = [
   { service: 'Diagnostika', price: '5 €' },
-  { service: 'Oprava', price: 'od 5 € podľa náročnosti' },
-  { service: 'Výmena / montáž', price: 'od 5 € podľa náročnosti' },
   { service: 'Čistenie (všetko)', price: '7 €' },
   { service: 'Windows inštalácia', price: '5–10 €' },
   { service: 'Legálna Windows licencia', price: 'približne 40 € podľa licencie' },

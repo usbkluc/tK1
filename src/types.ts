@@ -79,6 +79,8 @@ export interface RequestDraft {
   categoryId: string;
   subcategoryId: string;
   serviceId: string;
+  customerName: string;
+  customerSurname: string;
   answers: Record<string, string>;
   description: string;
   speed: SpeedOption;

@@ -9,6 +9,7 @@ interface ServiceDetailProps {
   draft: RequestDraft;
   onUpdateDraft: (updates: Partial<RequestDraft>) => void;
   onGenerateMessage: () => void;
+  submitting?: boolean;
 }
 
 export default function ServiceDetail({
@@ -17,6 +18,7 @@ export default function ServiceDetail({
   draft,
   onUpdateDraft,
   onGenerateMessage,
+  submitting = false,
 }: ServiceDetailProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileNames, setFileNames] = useState<string[]>(draft.files);
@@ -48,7 +50,8 @@ export default function ServiceDetail({
   });
   const descriptionOk = !service.descriptionPrompt || draft.description.trim().length > 0;
   const riskOk = !service.riskWarning || draft.riskAccepted;
-  const canProceed = requiredAnswered && descriptionOk && riskOk;
+  const nameOk = draft.customerName.trim().length > 0 && draft.customerSurname.trim().length > 0;
+  const canProceed = requiredAnswered && descriptionOk && riskOk && nameOk;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -66,6 +69,40 @@ export default function ServiceDetail({
           )}
         </div>
         <p className="mt-4 text-base leading-relaxed text-slate-300">{service.description}</p>
+      </div>
+
+      {/* Customer name */}
+      <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="mb-2 text-xl font-bold text-white">Kto si?</h2>
+        <p className="mb-5 text-sm text-slate-400">
+          Napíš mi svoje meno a priezvisko, aby som vedel, s kým sa dohodneme.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-200">
+              Meno<span className="ml-1 text-emerald-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={draft.customerName}
+              onChange={(e) => onUpdateDraft({ customerName: e.target.value })}
+              placeholder="napr. Ján"
+              className="w-full rounded-lg border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-200">
+              Priezvisko<span className="ml-1 text-emerald-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={draft.customerSurname}
+              onChange={(e) => onUpdateDraft({ customerSurname: e.target.value })}
+              placeholder="napr. Novák"
+              className="w-full rounded-lg border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Risk warning */}
@@ -306,24 +343,36 @@ export default function ServiceDetail({
         </div>
       )}
 
-      {/* Generate WhatsApp message button */}
+      {/* Submit button */}
       <div className="flex flex-col items-center gap-3">
         <button
           onClick={onGenerateMessage}
-          disabled={!canProceed}
+          disabled={!canProceed || submitting}
           className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-semibold transition-all sm:w-auto ${
-            canProceed
-              ? 'bg-[#25D366] text-white shadow-lg shadow-[#25D366]/25 hover:bg-[#1ebe5d] hover:-translate-y-0.5'
+            canProceed && !submitting
+              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 hover:-translate-y-0.5'
               : 'cursor-not-allowed bg-white/5 text-slate-500'
-          }`}
+          }`
+          }
         >
-          <MessageCircle size={20} />
-          Vytvoriť správu na WhatsApp
+          {submitting ? (
+            <>
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              Odosielam…
+            </>
+          ) : (
+            <>
+              <MessageCircle size={20} />
+              Odoslať požiadavku
+            </>
+          )}
         </button>
         {!canProceed && (
           <p className="text-sm text-slate-500">
             {service.riskWarning && !riskOk
               ? 'Prosím, potvrď súhlas s rizikami.'
+              : !nameOk
+              ? 'Vyplň svoje meno a priezvisko.'
               : 'Vyplň všetky povinné polia označené *.'}
           </p>
         )}
